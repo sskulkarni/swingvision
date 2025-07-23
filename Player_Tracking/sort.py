@@ -2,8 +2,6 @@ import numpy as np
 from filterpy.kalman import KalmanFilter
 from scipy.optimize import linear_sum_assignment
 
-# ===================== UTILS =====================
-
 def linear_assignment(cost_matrix):
     x, y = linear_sum_assignment(cost_matrix)
     return np.array(list(zip(x, y)))
@@ -38,8 +36,6 @@ def convert_x_to_bbox(x, score=None):
         return np.array([x[0] - w / 2., x[1] - h / 2., x[0] + w / 2., x[1] + h / 2.]).reshape((1, 4))
     else:
         return np.array([x[0] - w / 2., x[1] - h / 2., x[0] + w / 2., x[1] + h / 2., score]).reshape((1, 5))
-
-# ===================== TRACKER CLASSES =====================
 
 class KalmanBoxTracker(object):
     count = 0
@@ -136,7 +132,6 @@ class Sort(object):
         self.trackers = []
         self.frame_count = 0
 
-    # NOTE: now dets is (N,5): [x1,y1,x2,y2,score] and scores is not used!
     def update(self, dets, scores=None):
         if dets is None or len(dets)==0:
             dets = np.empty((0,5))
@@ -153,12 +148,8 @@ class Sort(object):
         for t in reversed(to_del):
             self.trackers.pop(t)
         matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets, trks, self.iou_threshold)
-
-        # update matched trackers with assigned detections
         for m in matched:
             self.trackers[m[1]].update(dets[m[0], :4])  # update with [x1, y1, x2, y2]
-
-        # create and initialise new trackers for unmatched detections
         for i in unmatched_dets:
             trk = KalmanBoxTracker(dets[i, :4])
             self.trackers.append(trk)
