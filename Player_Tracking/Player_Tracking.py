@@ -10,7 +10,7 @@ from sort import Sort
 # Ensure model directory is in sys.path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'model'))
 
-from model import BallTrackerNet   # model/model.py should define BallTrackerNet
+from model import BallTrackerNet
 from court_detector import CourtDetector
 from pose_utils import classify_shot, draw_corner_info_box
 from player_speed import PlayerSpeedTracker
@@ -28,10 +28,10 @@ csv_writer.writerow([
     "Speed(m/s)", "Shot_Type", "Ball_X", "Ball_Y"
 ])
 
-video_in = "VideoInput/video_input2.mp4"
-video_out = "VideoOutput/output_tracking2_with_ball.mp4"
+video_in = "VideoInput/video_input6.mp4"
+video_out = "VideoOutput/output_tracking2_with_ball6.mp4"
 
-posemodel = YOLO('yolov8s-pose.pt')   # Or 'yolov8n-pose.pt'
+posemodel = YOLO('yolov8s-pose.pt')
 cap = cv2.VideoCapture(video_in)
 if not cap.isOpened():
     print("Failed to open input video.")
@@ -75,7 +75,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ball_model = BallTrackerNet().to(device)
 ball_model.load_state_dict(torch.load(TRACKNET_WEIGHTS, map_location=device))
 ball_model.eval()
-ball_frame_buffer = []   # <-- For holding last 3 frames
+ball_frame_buffer = []
 
 def preprocess_for_tracknet(frame):
     frame = cv2.resize(frame, (input_width, input_height))
@@ -109,12 +109,10 @@ while True:
     if len(ball_frame_buffer) > 3:
         ball_frame_buffer.pop(0)
     if len(ball_frame_buffer) == 3:
-        # Stack 3 frames into (9, H, W)
-        tracknet_input = np.concatenate(ball_frame_buffer, axis=0)[None, ...]  # (1, 9, 360, 640)
+        tracknet_input = np.concatenate(ball_frame_buffer, axis=0)[None, ...]
         tracknet_input = torch.from_numpy(tracknet_input).to(device)
         with torch.no_grad():
             ball_pred = ball_model(tracknet_input)
-            # ball_pred shape: (1, 256, 360*640), but you want class-1 as ball, so:
             heatmap = ball_pred[0, 1].reshape(input_height, input_width).cpu().numpy()
         ball_y, ball_x = np.unravel_index(np.argmax(heatmap), heatmap.shape)
         draw_x = int(ball_x * width / input_width)
@@ -158,25 +156,20 @@ while True:
             tracked_players.append({'track_id': int(track_id), 'bbox': (x1,y1,x2,y2), 'cx': (x1+x2)/2, 'cy': (y1+y2)/2, 'keypoints': best_kps})
 
     tracked_players = sorted(tracked_players, key=lambda d: d['cx'])
-    tracked_players = tracked_players[:2]
-
-    for player_id, player in enumerate(tracked_players):
+    if tracked_players:
+        # Only process Player A (the first in list)
+        player = tracked_players[0]
         track_id = player['track_id']
         x1, y1, x2, y2 = map(int, player['bbox'])
         cx, cy = player['cx'], player['cy']
         keypoint_array = player['keypoints']
 
-        if player_id == 0:
-            player_name = "Player A"
-            info_box_position = (20, 20)
-            box_color = (255, 0, 0)
-        else:
-            player_name = "Player B"
-            info_box_position = (width - 320, 20)
-            box_color = (0, 255, 255)
+        player_name = "Player A"
+        info_box_position = (20, 20)
+        box_color = (255, 0, 0)
 
         cv2.putText(frame, player_name, (int(x1), int(y1) - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
         if track_id not in speed_trackers:
             speed_trackers[track_id] = PlayerSpeedTracker(fps)
@@ -187,7 +180,7 @@ while True:
             cv2.circle(frame, (int(x), int(y)), 4, (0, 255, 0), -1)
         cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), box_color, 2)
         cv2.putText(frame, player_name, (int(x1), int(y1) - 10),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
         norm_cx = cx / width
         norm_cy = cy / height
@@ -200,7 +193,7 @@ while True:
         court_y_m = court_y * PIXEL_TO_METER
 
         frame = draw_corner_info_box(
-            frame, player_id, label, norm_cx, norm_cy,
+            frame, 0, label, norm_cx, norm_cy,
             speed=speed_m_per_s, top_left=info_box_position
         )
 
