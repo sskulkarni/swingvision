@@ -43,18 +43,6 @@ zone_counts = player_df.groupby(['zone_x', 'zone_y']).size().unstack(fill_value=
 print("\nZone Densities:")
 print(zone_counts)
 
-# Plot movement over time
-plt.figure(figsize=(10, 4))
-plt.plot(player_df['Frame'], player_df['X'], label='X', color='blue')
-plt.plot(player_df['Frame'], player_df['Y'], label='Y', color='green')
-plt.title("Movement Over Time")
-plt.xlabel("Frame")
-plt.ylabel("Position (px)")
-plt.legend()
-plt.tight_layout()
-plt.savefig("CSVOutput/movement_over_time.png")
-plt.show()
-
 # Plot speed distribution
 plt.figure(figsize=(6, 4))
 plt.hist(player_df['speed'].dropna(), bins=20, color='orange', edgecolor='black')
