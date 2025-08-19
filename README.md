@@ -96,9 +96,44 @@ pip install numpy
 Clone the Repository
 Open a terminal and run:
 ```bash
-git clone https://github.com/yourusername/swingvision.git
+git clone https://github.com/sskulkarni/swingvision.git
 cd swingvision
 ```
+
+#### Install the depedencies
+```bash
+pip install -r requirements.txt
+```
+
+
+#### Run a Video
+
+```bash
+python3 Player_Tracking/Player_Movement.py
+```
+Please make sure to set input variable video_in
+The output will be stored in the directory "VideoOutput"
+CSV will be stored in directory "CSVOutput"
+
+#### Create a Heatmap
+
+```bash
+python3 python3 Player_Tracking/Heatmap.py
+```
+Please make sure to set input variable "csv_path"
+It will use the out put csv generated while Vidoe analysis
+
+#### Create a Player Movement Graph
+
+```bash
+python3 python3 Player_Tracking/Player_Movement.py
+```
+Please make sure to set input variable "csv_path"
+It will use the out put csv generated while Vidoe analysis
+
+
+
+
 
 ## 🔍 Future Improvements
 
