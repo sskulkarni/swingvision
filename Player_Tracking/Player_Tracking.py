@@ -6,6 +6,7 @@ import csv
 import torch
 from ultralytics import YOLO
 from sort import Sort
+from collections import defaultdict
 
 # Ensure model directory is in sys.path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'model'))
@@ -25,14 +26,18 @@ csv_file = open(csv_file_path, mode='w', newline='')
 csv_writer = csv.writer(csv_file)
 csv_writer.writerow([
     "Frame", "Player_name", "Court_X(m)", "Court_Y(m)",
-    "Speed(m/s)", "Shot_Type", "Ball_X", "Ball_Y"
+    "Speed(m/s)", "Shot_Type", "X", "Y", "Ball_X", "Ball_Y"
 ])
 
-video_in = "VideoInput/video_input6.mp4"
-video_out = "VideoOutput/output_tracking2_with_ball6.mp4"
+video_in = "VideoInput/video_input4.mp4"
+video_out = "VideoOutput/input_4_output.mp4"
 
 posemodel = YOLO('yolov8s-pose.pt')
 cap = cv2.VideoCapture(video_in)
+
+#print(cap.get(cv2.CAP_PROP_FPS))
+#exit()
+
 if not cap.isOpened():
     print("Failed to open input video.")
     exit()
@@ -69,6 +74,7 @@ cv2.resizeWindow("Pose Estimation", 800, 600)
 frame_count = 1
 
 # === BallTrackerNet Setup ===
+
 TRACKNET_WEIGHTS = os.path.join(os.path.dirname(__file__), 'model', 'model_best.pt')
 input_height, input_width = 360, 640
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -94,6 +100,10 @@ def is_point_in_court(point, court_polygon):
     if court_polygon is None:
         return False
     return cv2.pointPolygonTest(court_polygon, (int(point[0]), int(point[1])), False) >= 0
+
+frame_count = 0
+prev_positions = defaultdict(lambda: None)
+movement_threshold = 5
 
 while True:
     ret, frame = cap.read()
@@ -129,6 +139,7 @@ while True:
         keypoints_list = r.keypoints.xy
         bboxes = r.boxes.xyxy if r.boxes is not None else []
         scores = r.boxes.conf if r.boxes is not None else []
+
         for i, person in enumerate(keypoints_list):
             if i >= len(bboxes):
                 continue
@@ -138,6 +149,22 @@ while True:
             if is_point_in_court((cx, cy), court_polygon):
                 detections.append([x1, y1, x2, y2, score])
                 keypoints_map[(x1, y1, x2, y2)] = person.cpu().numpy()
+
+            # height = y2 - y1
+            # if 120 < height < 350: 
+            #     detections.append([x1, y1, x2, y2, score])
+            #     keypoints_map[(x1, y1, x2, y2)] = person.cpu().numpy()
+
+
+            # current_pos = np.array([cx, cy])
+            # prev_pos = prev_positions[i]
+            # if prev_pos is None:
+            #     prev_positions[i] = current_pos
+            #     continue
+            # movement = np.linalg.norm(current_pos - prev_pos)
+            # prev_positions[i] = current_pos
+            # if movement < movement_threshold:
+            #     continue
 
     dets_np = np.array(detections) if len(detections) > 0 else np.empty((0,5))
     tracks = tracker.update(dets_np)
@@ -193,14 +220,24 @@ while True:
         court_y_m = court_y * PIXEL_TO_METER
 
         frame = draw_corner_info_box(
-            frame, 0, label, norm_cx, norm_cy,
+            frame, 0, label, cx, cy,
             speed=speed_m_per_s, top_left=info_box_position
         )
 
+        if frame_count == 1:
+            first_frame_output_path = "CSVOutput/first_frame_with_bbox.jpg"
+            cv2.imwrite(first_frame_output_path, frame)
+            print(f"First frame with bounding box saved to {first_frame_output_path}")
+
+        #sys.exit()
+
         csv_writer.writerow([
-            frame_count, player_name, f"{court_x_m:.2f}", f"{court_y_m:.2f}", f"{speed_m_per_s:.2f}", label,
+            frame_count, player_name, f"{court_x_m:.2f}", f"{court_y_m:.2f}", f"{speed_m_per_s:.2f}", label , cx, cy,
             ball_xy[0] if ball_xy else '', ball_xy[1] if ball_xy else ''
         ])
+
+
+        csv_writer.writerow([frame_count, player_name, f"{court_x_m:.2f}", f"{court_y_m:.2f}", f"{speed_m_per_s:.2f}", label, cx, cy])
 
     out.write(frame)
     cv2.imshow("Pose Estimation", frame)
